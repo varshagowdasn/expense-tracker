@@ -13,11 +13,10 @@ All arithmetic is done in integer paise; only the API layer converts to/from Dec
 import sqlite3
 import os
 
-# DB_PATH = os.environ.get("/app/expenses.db", "expenses.db")
 
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect('C:\\Users\\dapatil\\Downloads\\files\\backend\\example.db')
+    conn = sqlite3.connect('example.db')
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")   # Better concurrent read perf
     conn.execute("PRAGMA foreign_keys=ON")
