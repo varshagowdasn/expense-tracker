@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paisa — Expense Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Design tokens ──────────────────────────────────────── */
+    :root {
+      --ink:       #0f0f0f;
+      --paper:     #f5f2eb;
+      --cream:     #ede9df;
+      --warm:      #d9d3c5;
+      --accent:    #c94f2c;          /* terracotta */
+      --accent-lt: #e8866e;
+      --green:     #2d6a4f;
+      --gold:      #b5860e;
+      --muted:     #7a7265;
+      --surface:   #faf8f3;
+      --border:    #ddd9ce;
+      --shadow:    rgba(15,15,15,0.08);
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-body:    'DM Sans', sans-serif;
+      --font-mono:    'DM Mono', monospace;
+      --radius:    4px;
+      --transition: 200ms ease;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--paper);
+      color: var(--ink);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Noise texture overlay ────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ───────────────────────────────────────────── */
+    .wrapper {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Header ───────────────────────────────────────────── */
+    header {
+      padding: 40px 0 32px;
+      border-bottom: 1.5px solid var(--border);
+      margin-bottom: 40px;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-size: 2.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    .logo span { color: var(--accent); }
+
+    .tagline {
+      font-size: 0.875rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Grid layout ─────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Card ─────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: 0 2px 12px var(--shadow);
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 22px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title .icon {
+      width: 24px; height: 24px;
+      background: var(--accent);
+      border-radius: 2px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 12px;
+    }
+
+    /* ── Form ─────────────────────────────────────────────── */
+    .form-group { margin-bottom: 16px; }
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: var(--font-body);
+      font-size: 0.925rem;
+      color: var(--ink);
+      transition: border-color var(--transition), box-shadow var(--transition);
+      appearance: none;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(201,79,44,0.1);
+    }
+
+    input.error, select.error { border-color: var(--accent); }
+
+    .field-error {
+      font-size: 0.75rem;
+      color: var(--accent);
+      margin-top: 4px;
+      font-family: var(--font-mono);
+    }
+
+    /* Amount field with ₹ prefix */
+    .amount-wrap { position: relative; }
+    .amount-prefix {
+      position: absolute;
+      left: 12px; top: 50%;
+      transform: translateY(-50%);
+      font-family: var(--font-mono);
+      font-weight: 500;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .amount-wrap input { padding-left: 26px; }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a7265' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+
+    /* ── Button ───────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      width: 100%;
+      margin-top: 4px;
+    }
+    .btn-primary:hover:not(:disabled) { background: #b0432a; }
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-sm {
+      padding: 6px 14px;
+      font-size: 0.8rem;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-ghost.active {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: var(--paper);
+    }
+
+    /* ── Toast notification ────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      padding: 12px 18px;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-family: var(--font-mono);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      animation: slideIn 0.2s ease;
+      max-width: 320px;
+    }
+
+    .toast.success { background: var(--green); color: #fff; }
+    .toast.error   { background: var(--accent); color: #fff; }
+
+    @keyframes slideIn {
+      from { transform: translateX(20px); opacity: 0; }
+      to   { transform: translateX(0); opacity: 1; }
+    }
+
+    /* ── Controls bar ─────────────────────────────────────── */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .controls-label {
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-right: 2px;
+    }
+
+    .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      background: var(--surface);
+      color: var(--muted);
+      transition: all var(--transition);
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
+    .chip.active { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+    /* ── Summary strip ────────────────────────────────────── */
+    .summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+      background: var(--ink);
+      color: var(--paper);
+      border-radius: var(--radius);
+      margin-bottom: 18px;
+      font-family: var(--font-mono);
+    }
+
+    .summary-count { font-size: 0.8rem; color: var(--warm); }
+
+    .summary-total {
+      font-size: 1.3rem;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+    }
+
+    .summary-total .currency { font-size: 0.9rem; color: var(--accent-lt); }
+
+    /* ── Category totals ──────────────────────────────────── */
+    .category-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .cat-badge {
+      padding: 4px 10px;
+      border-radius: 3px;
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      background: var(--cream);
+      border: 1px solid var(--border);
+      color: var(--ink);
+    }
+
+    .cat-badge .cat-amount { color: var(--muted); margin-left: 4px; }
+
+    /* ── Expense table ────────────────────────────────────── */
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    thead th {
+      text-align: left;
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 14px 10px;
+      border-bottom: 1.5px solid var(--border);
+    }
+
+    thead th.sortable { cursor: pointer; user-select: none; }
+    thead th.sortable:hover { color: var(--accent); }
+
+    tbody tr {
+      border-bottom: 1px solid var(--cream);
+      transition: background var(--transition);
+    }
+    tbody tr:hover { background: var(--cream); }
+    tbody tr:last-child { border-bottom: none; }
+
+    td {
+      padding: 13px 14px;
+      vertical-align: middle;
+    }
+
+    .td-amount {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    .td-category {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
+      font-weight: 500;
+    }
+
+    .td-date {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .td-desc { color: var(--muted); max-width: 200px; }
+
+    /* Category color coding */
+    .cat-Food        { background: #fef3e2; color: #92540a; }
+    .cat-Transport   { background: #e0f2fe; color: #075985; }
+    .cat-Housing     { background: #f0fdf4; color: #166534; }
+    .cat-Healthcare  { background: #fdf2f8; color: #86198f; }
+    .cat-Entertainment { background: #fff7ed; color: #9a3412; }
+    .cat-Shopping    { background: #fef9c3; color: #854d0e; }
+    .cat-Utilities   { background: #f0f9ff; color: #0c4a6e; }
+    .cat-Education   { background: #f5f3ff; color: #5b21b6; }
+    .cat-Other       { background: var(--cream); color: var(--muted); }
+
+    /* ── Empty state ──────────────────────────────────────── */
+    .empty {
+      text-align: center;
+      padding: 56px 24px;
+      color: var(--muted);
+    }
+
+    .empty-icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+
+    .empty h3 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+      color: var(--ink);
+    }
+
+    /* ── Loading skeleton ─────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--cream) 25%, var(--border) 50%, var(--cream) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+      border-radius: 3px;
+      height: 14px;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .skeleton-row td { padding: 16px 14px; }
+
+    /* ── Sort control ─────────────────────────────────────── */
+    .sort-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      color: var(--muted);
+      transition: all var(--transition);
+    }
+    .sort-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .sort-btn.asc  { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+    /* ── Spinner ───────────────────────────────────────────── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="wrapper">
+  <header>
+    <div class="logo">P<span>ai</span>sa</div>
+    <div class="tagline">// personal expense tracker</div>
+  </header>
+
+  <div class="grid">
+    <!-- ── Add Expense Form ── -->
+    <aside>
+      <div class="card">
+        <div class="card-title">
+          <span class="icon">+</span>
+          New Expense
+        </div>
+
+        <div class="form-group">
+          <label for="f-amount">Amount (₹)</label>
+          <div class="amount-wrap">
+            <span class="amount-prefix">₹</span>
+            <input type="number" id="f-amount" placeholder="0.00" min="0.01" step="0.01" />
+          </div>
+          <div class="field-error" id="err-amount"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="f-category">Category</label>
+          <select id="f-category">
+            <option value="">— select —</option>
+            <option>Food</option>
+            <option>Transport</option>
+            <option>Housing</option>
+            <option>Healthcare</option>
+            <option>Entertainment</option>
+            <option>Shopping</option>
+            <option>Utilities</option>
+            <option>Education</option>
+            <option>Other</option>
+          </select>
+          <div class="field-error" id="err-category"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="f-description">Description</label>
+          <input type="text" id="f-description" placeholder="e.g. Lunch at Saravana Bhavan" maxlength="500" />
+        </div>
+
+        <div class="form-group">
+          <label for="f-date">Date</label>
+          <input type="date" id="f-date" />
+          <div class="field-error" id="err-date"></div>
+        </div>
+
+        <button class="btn btn-primary" id="btn-submit" onclick="submitExpense()">
+          Add Expense
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── Expense List ── -->
+    <main>
+      <div class="card">
+        <div class="card-title">
+          <span class="icon">≡</span>
+          Expenses
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+          <span class="controls-label">Filter:</span>
+          <div class="filter-chips" id="filter-chips">
+            <span class="chip active" data-cat="">All</span>
+            <span class="chip" data-cat="Food">Food</span>
+            <span class="chip" data-cat="Transport">Transport</span>
+            <span class="chip" data-cat="Housing">Housing</span>
+            <span class="chip" data-cat="Healthcare">Healthcare</span>
+            <span class="chip" data-cat="Entertainment">Entertainment</span>
+            <span class="chip" data-cat="Shopping">Shopping</span>
+            <span class="chip" data-cat="Utilities">Utilities</span>
+            <span class="chip" data-cat="Education">Education</span>
+            <span class="chip" data-cat="Other">Other</span>
+          </div>
+        </div>
+
+        <div class="controls" style="margin-top:-4px">
+          <span class="controls-label">Sort:</span>
+          <button class="sort-btn" id="sort-btn" onclick="toggleSort()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18M7 12h10M11 18h2"/>
+            </svg>
+            <span id="sort-label">Newest first</span>
+          </button>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary" id="summary">
+          <span class="summary-count" id="summary-count">0 expenses</span>
+          <span class="summary-total">
+            <span class="currency">₹ </span><span id="summary-total">0.00</span>
+          </span>
+        </div>
+
+        <!-- Category totals -->
+        <div class="category-summary" id="cat-totals"></div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th style="text-align:right">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="expense-list">
+              <tr class="skeleton-row">
+                <td><div class="skeleton" style="width:80px"></div></td>
+                <td><div class="skeleton" style="width:70px"></div></td>
+                <td><div class="skeleton" style="width:140px"></div></td>
+                <td><div class="skeleton" style="width:60px;margin-left:auto"></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  // ── Config ───────────────────────────────────────────────
+  // Change API_BASE to your deployed backend URL
+  const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8080'
+    : 'https://your-backend.onrender.com';  // ← Update this after deployment
+
+  // ── State ────────────────────────────────────────────────
+  let activeCategory = '';
+  let sortOrder = 'date_desc';
+  let submitting = false;
+
+  // ── Utilities ────────────────────────────────────────────
+  function formatAmount(str) {
+    const n = parseFloat(str);
+    return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function generateUUID() {
+    return crypto.randomUUID ? crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = Math.random() * 16 | 0;
+          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+  }
+
+  // ── Toast ─────────────────────────────────────────────────
+  function toast(msg, type = 'success') {
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  // ── Validation ─────────────────────────────────────────────
+  function clearErrors() {
+    ['amount','category','date'].forEach(f => {
+      document.getElementById(`err-${f}`).textContent = '';
+      document.getElementById(`f-${f}`).classList.remove('error');
+    });
+  }
+
+  function setError(field, msg) {
+    document.getElementById(`err-${field}`).textContent = msg;
+    document.getElementById(`f-${field}`).classList.add('error');
+  }
+
+  function validate() {
+    clearErrors();
+    let ok = true;
+    const amount = parseFloat(document.getElementById('f-amount').value);
+    if (!amount || amount <= 0) { setError('amount', 'Enter a positive amount'); ok = false; }
+    if (!document.getElementById('f-category').value) { setError('category', 'Select a category'); ok = false; }
+    if (!document.getElementById('f-date').value) { setError('date', 'Select a date'); ok = false; }
+    return ok;
+  }
+
+  // ── Submit ─────────────────────────────────────────────────
+  // We store a per-session idempotency key per submission attempt
+  // If same form is submitted twice (double click / retry), same key → dedup on server
+  let pendingIdempotencyKey = null;
+
+  async function submitExpense() {
+    if (submitting) return;
+    if (!validate()) return;
+
+    // Generate a new key only if no pending key (i.e. fresh submission, not retry)
+    if (!pendingIdempotencyKey) pendingIdempotencyKey = generateUUID();
+
+    const payload = {
+      amount: parseFloat(document.getElementById('f-amount').value).toFixed(2),
+      category: document.getElementById('f-category').value,
+      description: document.getElementById('f-description').value.trim(),
+      date: document.getElementById('f-date').value,
+      idempotency_key: pendingIdempotencyKey,
+    };
+
+    submitting = true;
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Adding…';
+
+    try {
+      const res = await fetch(`${API_BASE}/expenses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Server error ${res.status}`);
+      }
+
+      // Success: reset form and idempotency key
+      pendingIdempotencyKey = null;
+      document.getElementById('f-amount').value = '';
+      document.getElementById('f-category').value = '';
+      document.getElementById('f-description').value = '';
+      // Keep date for convenience
+      toast('Expense added ✓');
+      loadExpenses();
+    } catch (e) {
+      toast(e.message || 'Failed to add expense', 'error');
+      // Keep pendingIdempotencyKey so retry is safe
+    } finally {
+      submitting = false;
+      btn.disabled = false;
+      btn.innerHTML = 'Add Expense';
+    }
+  }
+
+  // ── Filter chips ────────────────────────────────────────────
+  document.getElementById('filter-chips').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeCategory = chip.dataset.cat;
+    loadExpenses();
+  });
+
+  // ── Sort toggle ─────────────────────────────────────────────
+  function toggleSort() {
+    sortOrder = sortOrder === 'date_desc' ? 'date_asc' : 'date_desc';
+    const btn = document.getElementById('sort-btn');
+    const label = document.getElementById('sort-label');
+    if (sortOrder === 'date_asc') {
+      btn.classList.add('asc');
+      label.textContent = 'Oldest first';
+    } else {
+      btn.classList.remove('asc');
+      label.textContent = 'Newest first';
+    }
+    loadExpenses();
+  }
+
+  // ── Load expenses ────────────────────────────────────────────
+  async function loadExpenses() {
+    const tbody = document.getElementById('expense-list');
+    tbody.innerHTML = `
+      <tr class="skeleton-row">
+        <td><div class="skeleton" style="width:80px"></div></td>
+        <td><div class="skeleton" style="width:70px"></div></td>
+        <td><div class="skeleton" style="width:140px"></div></td>
+        <td><div class="skeleton" style="width:60px;margin-left:auto"></div></td>
+      </tr>`;
+
+    let url = `${API_BASE}/expenses?sort=${sortOrder}`;
+    if (activeCategory) url += `&category=${encodeURIComponent(activeCategory)}`;
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderExpenses(data);
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--accent);font-family:var(--font-mono);font-size:.8rem">⚠ Could not load expenses — ${e.message}</td></tr>`;
+    }
+  }
+
+  function renderExpenses(data) {
+    const tbody = document.getElementById('expense-list');
+    const expenses = data.expenses;
+
+    // Summary strip
+    document.getElementById('summary-count').textContent =
+      `${data.count} expense${data.count !== 1 ? 's' : ''}`;
+    document.getElementById('summary-total').textContent = formatAmount(data.total);
+
+    // Category totals
+    const catMap = {};
+    expenses.forEach(e => {
+      catMap[e.category] = (catMap[e.category] || 0) + parseFloat(e.amount);
+    });
+    const catEl = document.getElementById('cat-totals');
+    catEl.innerHTML = Object.entries(catMap)
+      .sort((a,b) => b[1]-a[1])
+      .map(([cat, total]) =>
+        `<span class="cat-badge">${cat}<span class="cat-amount">₹${formatAmount(total.toFixed(2))}</span></span>`
+      ).join('');
+
+    // Table rows
+    if (expenses.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4">
+            <div class="empty">
+              <div class="empty-icon">₹</div>
+              <h3>No expenses yet</h3>
+              <p>Add your first expense using the form.</p>
+            </div>
+          </td>
+        </tr>`;
+      return;
+    }
+
+    tbody.innerHTML = expenses.map(e => `
+      <tr>
+        <td class="td-date">${formatDate(e.date)}</td>
+        <td><span class="td-category cat-${e.category}">${e.category}</span></td>
+        <td class="td-desc">${escapeHtml(e.description || '—')}</td>
+        <td class="td-amount" style="text-align:right">₹${formatAmount(e.amount)}</td>
+      </tr>`).join('');
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Init ─────────────────────────────────────────────────────
+  // Set today's date as default
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+  // Allow Enter key to submit
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.closest('.card') === document.querySelector('.card')) {
+      submitExpense();
+    }
+  });
+
+  loadExpenses();
+</script>
+</body>
+</html>
